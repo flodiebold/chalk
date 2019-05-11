@@ -76,6 +76,7 @@ impl<C: Context> Forest<C> {
         &'f mut self,
         context: &'f impl ContextOps<C>,
         goal: &C::UCanonicalGoalInEnvironment,
+        fuel: Option<usize>,
     ) -> impl AnswerStream<C> + 'f {
         let table = self.get_or_create_table_for_ucanonical_goal(context, goal.clone());
         let answer = AnswerIndex::ZERO;
@@ -84,6 +85,7 @@ impl<C: Context> Forest<C> {
             context,
             table,
             answer,
+            fuel,
         }
     }
 
@@ -94,8 +96,9 @@ impl<C: Context> Forest<C> {
         &mut self,
         context: &impl ContextOps<C>,
         goal: &C::UCanonicalGoalInEnvironment,
+        fuel: Option<usize>,
     ) -> Option<C::Solution> {
-        context.make_solution(C::canonical(&goal), self.iter_answers(context, goal))
+        context.make_solution(C::canonical(&goal), self.iter_answers(context, goal, fuel))
     }
 
     /// True if all the tables on the stack starting from `depth` and
@@ -147,6 +150,7 @@ struct ForestSolver<'me, C: Context + 'me, CO: ContextOps<C> + 'me> {
     context: &'me CO,
     table: TableIndex,
     answer: AnswerIndex,
+    fuel: Option<usize>,
 }
 
 impl<'me, C, CO> AnswerStream<C> for ForestSolver<'me, C, CO>
@@ -156,6 +160,13 @@ where
 {
     fn peek_answer(&mut self) -> Option<SimplifiedAnswer<C>> {
         loop {
+            if let Some(fuel) = &mut self.fuel {
+                if *fuel == 0 {
+                    // TODO: would it be better to return an ambiguous answer?
+                    return None;
+                }
+                *fuel -= 1;
+            }
             match self
                 .forest
                 .ensure_root_answer(self.context, self.table, self.answer)
