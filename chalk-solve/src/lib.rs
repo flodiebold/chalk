@@ -34,11 +34,7 @@ pub trait RustIrDatabase: Debug {
     fn impl_datum(&self, impl_id: ImplId) -> Arc<ImplDatum>;
 
     /// Returns all the impls for a given trait.
-    ///
-    /// FIXME: We should really be using some kind of "simplified self
-    /// type" to help the impl use a hashing strategy and avoid
-    /// returning a ton of entries here.
-    fn impls_for_trait(&self, trait_id: TraitId) -> Vec<ImplId>;
+    fn impls_for_trait(&self, trait_id: TraitId, self_fp: Option<TyFingerprint>) -> Vec<ImplId>;
 
     /// Returns the id of every struct in the program.
     ///

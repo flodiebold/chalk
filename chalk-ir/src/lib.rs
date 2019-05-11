@@ -310,6 +310,29 @@ impl Ty {
     pub fn needs_shift(&self) -> bool {
         *self != self.shifted_in(1)
     }
+
+    pub fn fingerprint(&self) -> TyFingerprint {
+        match self {
+            Ty::Apply(apply_ty) => TyFingerprint::Apply(apply_ty.name),
+            Ty::Projection(_)
+            | Ty::UnselectedProjection(_)
+            | Ty::ForAll(_)
+            | Ty::BoundVar(_)
+            | Ty::InferenceVar(_) => TyFingerprint::Other,
+        }
+    }
+}
+
+/// A 'fingerprint' of a type, used for indexing impls. This should be relatively small and Copy.
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+pub enum TyFingerprint {
+    /// Represents a `Ty::Apply`, but without the type parameters.
+    Apply(TypeName),
+
+    /// Represents any other kind of type. There shouldn't be a lot of impls for
+    /// these, but it will include blanket impls, so we'll need to always look
+    /// them up. (Maybe it would be a good idea to separate 'Other' and blanked impls?)
+    Other,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -549,6 +572,9 @@ pub struct TraitRef {
 }
 
 impl TraitRef {
+    pub fn self_ty(&self) -> &Ty {
+        self.parameters[0].assert_ty_ref()
+    }
     pub fn type_parameters<'a>(&'a self) -> impl Iterator<Item = Ty> + 'a {
         self.parameters.iter().cloned().filter_map(|p| p.ty())
     }

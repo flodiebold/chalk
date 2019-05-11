@@ -146,8 +146,21 @@ fn program_clauses_that_could_match(
             // as for the `Implemented(Foo) :- FromEnv(Foo)` rule.
             db.trait_datum(trait_id).to_program_clauses(db, clauses);
 
-            for impl_id in db.impls_for_trait(trait_id) {
+            let self_fp = trait_ref.self_ty().fingerprint();
+            for impl_id in db.impls_for_trait(trait_id, Some(self_fp)) {
                 db.impl_datum(impl_id).to_program_clauses(db, clauses);
+            }
+            match self_fp {
+                TyFingerprint::Apply(_) => {
+                    for impl_id in db.impls_for_trait(trait_id, Some(TyFingerprint::Other)) {
+                        db.impl_datum(impl_id).to_program_clauses(db, clauses);
+                    }
+                }
+                TyFingerprint::Other => {
+                    for impl_id in db.impls_for_trait(trait_id, None) {
+                        db.impl_datum(impl_id).to_program_clauses(db, clauses);
+                    }
+                }
             }
 
             // If this is a `Foo: Send` (or any auto-trait), then add
@@ -237,16 +250,16 @@ fn push_program_clauses_for_associated_type_values_in_impls_of(
     trait_id: TraitId,
     clauses: &mut Vec<ProgramClause>,
 ) {
-    for impl_id in db.impls_for_trait(trait_id) {
-        let impl_datum = db.impl_datum(impl_id);
-        if !impl_datum.is_positive() {
-            continue;
-        }
+    // for impl_id in db.impls_for_trait(trait_id) {
+    //     let impl_datum = db.impl_datum(impl_id);
+    //     if !impl_datum.is_positive() {
+    //         continue;
+    //     }
 
-        for atv in &impl_datum.binders.value.associated_ty_values {
-            atv.to_program_clauses(db, clauses);
-        }
-    }
+    //     for atv in &impl_datum.binders.value.associated_ty_values {
+    //         atv.to_program_clauses(db, clauses);
+    //     }
+    // }
 }
 
 /// Given the "self-type" of a domain goal, push potentially relevant program
